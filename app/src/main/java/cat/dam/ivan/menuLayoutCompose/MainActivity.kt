@@ -17,6 +17,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,17 +35,24 @@ import androidx.navigation.createGraph
 import cat.dam.ivan.menuLayoutCompose.ui.theme.Views2Theme
 
 /**
- * Main activity class that sets up the navigation for the application.
+ * Main activity of the application.
+ * This is the entry point of your application.
  */
 class MainActivity : ComponentActivity() {
+    /**
+     * Called when the activity is starting.
+     * This is where most initialization should go.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             // Create a NavController to manage app navigation
             val navController = rememberNavController()
+            // Create a state variable to hold the current route
+            val currentRoute = remember { mutableStateOf("Layout 1") }
             // Create a NavGraph for the NavController
             val navGraph = remember(navController) {
-                navController.createGraph(startDestination = "Layout 1") {
+                navController.createGraph(startDestination = currentRoute.value) {
                     // Add your layouts here if necessary
                     composable("Layout 1") { Layout1() }
                     composable("Layout 2") { Layout2() }
@@ -54,7 +63,7 @@ class MainActivity : ComponentActivity() {
             Views2Theme {
                 Scaffold(
                     // Set the top bar to be a MenuButton
-                    topBar = { MenuButton(navController, navGraph) }
+                    topBar = { MenuButton(navController, navGraph, currentRoute) }
                 ) { innerPadding ->
                     Box(
                         modifier = Modifier
@@ -71,13 +80,15 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Composable function that creates a MenuButton.
- *
- * @param navController The NavController that manages the app navigation.
- * @param navGraph The NavGraph that defines the app navigation paths.
+ * MenuButton is a composable function that creates a horizontal scrollable row of buttons.
+ * Each button represents a route in the navigation graph.
  */
 @Composable
-fun MenuButton(navController: NavHostController, navGraph: NavGraph) {
+fun MenuButton(
+    navController: NavHostController,
+    navGraph: NavGraph,
+    currentRoute: MutableState<String>
+) {
     LazyRow(
         modifier = Modifier
             .background(MaterialTheme.colorScheme.primary)
@@ -92,13 +103,12 @@ fun MenuButton(navController: NavHostController, navGraph: NavGraph) {
             Spacer(modifier = Modifier.width(4.dp))
         }
 
-        // Add a button for each layout in the navGraph
         for (i in 0 until navGraph.nodes.size()) {
-            // Get the route of the layout from the navGraph
             val route = navGraph.nodes.valueAt(i).route.toString()
 
             item {
-                StylizedButton(navController, route)
+                // Create a button for each route in the navigation graph
+                StylizedButton(navController, route, currentRoute)
                 Spacer(modifier = Modifier.width(4.dp))
             }
         }
@@ -106,13 +116,15 @@ fun MenuButton(navController: NavHostController, navGraph: NavGraph) {
 }
 
 /**
- * Composable function that creates a StylizedButton.
- *
- * @param navController The NavController that manages the app navigation.
- * @param route The route that the button will navigate to when clicked.
+ * StylizedButton is a composable function that creates a button with a specific style.
+ * When the button is clicked, it navigates to the corresponding route and updates the current route state.
  */
 @Composable
-fun StylizedButton(navController: NavHostController, route: String) {
+fun StylizedButton(
+    navController: NavHostController,
+    route: String,
+    currentRoute: MutableState<String>
+) {
     val haptic = LocalHapticFeedback.current
 
     Button(
@@ -123,10 +135,13 @@ fun StylizedButton(navController: NavHostController, route: String) {
             navController.navigate(route)
             // Perform haptic feedback(vibration)
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            // Update the current route
+            currentRoute.value = route
         },
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 15.dp,
         ),
+        enabled = currentRoute.value != route,
     ) {
         Text(
             text = route,
